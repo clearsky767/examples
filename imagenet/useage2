@@ -1,0 +1,10 @@
+evaluate cmd:
+
+python wavenet.py --checkpoint ./model_best.pth.tar --csvfile ./BB0001B900420D5F_1.csv --batchsize 64 --gpu 0
+
+
+evaluate cmd:
+
+python wave_gen.py --csvfile ./BB0001B900420D5F_1.csv
+
+python wave_go.py --checkpoint ./model_best.pth.tar --csvfile ./BB0001B900420D5F_1.csv --batchsize 64 --gpu 0

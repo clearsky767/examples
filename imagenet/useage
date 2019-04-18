@@ -1,0 +1,7 @@
+train cmd:
+
+python main.py --gpu 0 ./data
+
+evaluate cmd:
+
+python main.py -e --resume ./pth_bak3/model_best.pth.tar --gpu 0 ./data

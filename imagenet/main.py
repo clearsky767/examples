@@ -4,6 +4,7 @@ import random
 import shutil
 import time
 import warnings
+#import numpy as np
 
 import torch
 import torch.nn as nn
@@ -35,7 +36,7 @@ parser.add_argument('--epochs', default=90, type=int, metavar='N',
                     help='number of total epochs to run')
 parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
                     help='manual epoch number (useful on restarts)')
-parser.add_argument('-b', '--batch-size', default=256, type=int,
+parser.add_argument('-b', '--batch-size', default=64, type=int,
                     metavar='N', help='mini-batch size (default: 256)')
 parser.add_argument('--lr', '--learning-rate', default=0.1, type=float,
                     metavar='LR', help='initial learning rate')
@@ -64,24 +65,24 @@ parser.add_argument('--gpu', default=None, type=int,
 
 best_prec1 = 0
 
+nine_grid = [[0,0,0],[0,0,0],[0,0,0]]
+out_grid = 0
+args = parser.parse_args()
 
 def main():
-    global args, best_prec1
-    args = parser.parse_args()
-
     if args.seed is not None:
         random.seed(args.seed)
+        #np.random.seed(args.seed)
         torch.manual_seed(args.seed)
-        cudnn.deterministic = True
         warnings.warn('You have chosen to seed training. '
                       'This will turn on the CUDNN deterministic setting, '
                       'which can slow down your training considerably! '
                       'You may see unexpected behavior when restarting '
                       'from checkpoints.')
-
-    if args.gpu is not None:
-        warnings.warn('You have chosen a specific GPU. This will completely '
-                      'disable data parallelism.')
+        if args.gpu is not None:
+            torch.cuda.manual_seed(args.seed)
+            cudnn.deterministic = True
+            warnings.warn('You have chosen a specific GPU. This will completely disable data parallelism.')
 
     args.distributed = args.world_size > 1
 
@@ -141,7 +142,7 @@ def main():
     train_dataset = datasets.ImageFolder(
         traindir,
         transforms.Compose([
-            transforms.RandomResizedCrop(224),
+            transforms.RandomResizedCrop(448),
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
             normalize,
@@ -158,8 +159,8 @@ def main():
 
     val_loader = torch.utils.data.DataLoader(
         datasets.ImageFolder(valdir, transforms.Compose([
-            transforms.Resize(256),
-            transforms.CenterCrop(224),
+            transforms.Resize(512),
+            transforms.CenterCrop(448),
             transforms.ToTensor(),
             normalize,
         ])),
@@ -210,7 +211,7 @@ def train(train_loader, model, criterion, optimizer, epoch):
 
         if args.gpu is not None:
             input = input.cuda(args.gpu, non_blocking=True)
-        target = target.cuda(args.gpu, non_blocking=True)
+            target = target.cuda(args.gpu, non_blocking=True)
 
         # compute output
         output = model(input)
@@ -252,11 +253,12 @@ def validate(val_loader, model, criterion):
     model.eval()
 
     with torch.no_grad():
+
         end = time.time()
         for i, (input, target) in enumerate(val_loader):
             if args.gpu is not None:
                 input = input.cuda(args.gpu, non_blocking=True)
-            target = target.cuda(args.gpu, non_blocking=True)
+                target = target.cuda(args.gpu, non_blocking=True)
 
             # compute output
             output = model(input)
@@ -283,6 +285,9 @@ def validate(val_loader, model, criterion):
 
         print(' * Prec@1 {top1.avg:.3f} Prec@5 {top5.avg:.3f}'
               .format(top1=top1, top5=top5))
+        print("*******************************")
+        print(nine_grid)
+        print(out_grid)
 
     return top1.avg
 
@@ -324,7 +329,32 @@ def accuracy(output, target, topk=(1,)):
         maxk = max(topk)
         batch_size = target.size(0)
 
-        _, pred = output.topk(maxk, 1, True, True)
+        maxs, pred = output.topk(maxk, 1, True, True)
+        print("========================>>>")
+        print(maxs.size())
+        print(maxs)
+        print(pred.size())
+        print(pred)
+        print(target.size())
+        print(target)
+        for i in range(0,target.size(0)):
+            i_t = target[i].cpu().item()
+            i_p = pred[i][0].cpu().item()
+            print("i_t i_p ------------------")
+            print(i_t)
+            # print(i_t.size())
+            print(i_p)
+            print(i)
+            # print(i_p.size())
+            if i_t in (0,1,2):
+                if i_p in (0,1,2):
+                    nine_grid[i_t][i_p]=nine_grid[i_t][i_p]+1
+                else:
+                    out_grid += 1
+            else:
+                out_grid = out_grid+1
+
+        print("<<<========================")
         pred = pred.t()
         correct = pred.eq(target.view(1, -1).expand_as(pred))
 
