@@ -1,26 +1,17 @@
 import torch
 import torch.nn as nn
-from torch.autograd import Variable
 import numpy as np
-import numpy.random as npr
 
-# clean up environment
-from utils import bbox_transform, bbox_transform_inv, clip_boxes, filter_boxes, bbox_overlaps
 from generate_anchors import generate_anchors
+from utils import *
+from py_cpu_nms import py_cpu_nms
 
-from utils import to_var as _tovar
-
-from py_cpu_nms import py_cpu_nms as nms
-
-class RPN(nn.Container):
-
-  def __init__(self,
-      classifier, anchor_scales=None,
+class RPN(nn.Module):
+  def __init__(self,classifier, anchor_scales=None,
       negative_overlap=0.3, positive_overlap=0.7,
       fg_fraction=0.5, batch_size=256,
       nms_thresh=0.7, min_size=16,
-      pre_nms_topN=12000, post_nms_topN=2000
-      ):
+      pre_nms_topN=12000, post_nms_topN=2000):
     super(RPN, self).__init__()
 
     self.rpn_classifier = classifier
@@ -68,9 +59,9 @@ class RPN(nn.Container):
     # only for visualization
     if False:
       roi_boxes = all_anchors
-      return _tovar((roi_boxes, scores, rpn_loss, rpn_labels))
+      return to_tensor((roi_boxes, scores, rpn_loss, rpn_labels))
 
-    return _tovar((roi_boxes, scores, rpn_loss))
+    return to_tensor((roi_boxes, scores, rpn_loss))
 
 
   # from faster rcnn py
@@ -80,8 +71,7 @@ class RPN(nn.Container):
     shift_x = np.arange(0, width) * self._feat_stride
     shift_y = np.arange(0, height) * self._feat_stride
     shift_x, shift_y = np.meshgrid(shift_x, shift_y)
-    shifts = np.vstack((shift_x.ravel(), shift_y.ravel(),
-                        shift_x.ravel(), shift_y.ravel())).transpose()
+    shifts = np.vstack((shift_x.ravel(), shift_y.ravel(),shift_x.ravel(), shift_y.ravel())).transpose()
     # add A anchors (1, A, 4) to
     # cell K shifts (K, 1, 4) to get
     # shift anchors (K, A, 4)
@@ -121,111 +111,167 @@ class RPN(nn.Container):
     # overlaps (ex, gt)
     #overlaps = bbox_overlaps(anchors, gt_boxes)#.numpy()
     overlaps = bbox_overlaps(torch.from_numpy(anchors), gt_boxes).numpy()
+    print("rpn_targets start")
+    print(overlaps)
     gt_boxes = gt_boxes.numpy()
+    print(gt_boxes)
     argmax_overlaps = overlaps.argmax(axis=1)
+    print(argmax_overlaps)
     max_overlaps = overlaps[np.arange(len(inds_inside)), argmax_overlaps]
+    print(max_overlaps)
     gt_argmax_overlaps = overlaps.argmax(axis=0)
-    gt_max_overlaps = overlaps[gt_argmax_overlaps,
-                               np.arange(overlaps.shape[1])]
+    print(gt_argmax_overlaps)
+    gt_max_overlaps = overlaps[gt_argmax_overlaps,np.arange(overlaps.shape[1])]
+    print(gt_max_overlaps)
     gt_argmax_overlaps = np.where(overlaps == gt_max_overlaps)[0]
-    
+    print(gt_argmax_overlaps)
     # assign bg labels first so that positive labels can clobber them
     labels[max_overlaps < self.negative_overlap] = 0
-
+    print(labels)
     # fg label: for each gt, anchor with highest overlap
     labels[gt_argmax_overlaps] = 1
-
+    print(labels)
     # fg label: above threshold IOU
     labels[max_overlaps >= self.positive_overlap] = 1
-    
+    print(labels)
     # subsample positive labels if we have too many
     num_fg = int(self.fg_fraction * self.batch_size)
+    print(num_fg)
     fg_inds = np.where(labels == 1)[0]
+    print(fg_inds)
     if len(fg_inds) > num_fg:
-      disable_inds = npr.choice(
-          fg_inds, size=(len(fg_inds) - num_fg), replace=False)
+      print("if 1")
+      disable_inds = np.random.choice(fg_inds, size=(len(fg_inds) - num_fg), replace=False)
+      print(disable_inds)
       labels[disable_inds] = -1
+      print(labels)
 
     # subsample negative labels if we have too many
     num_bg = self.batch_size - np.sum(labels == 1)
+    print(num_bg)
     bg_inds = np.where(labels == 0)[0]
+    print(bg_inds)
     if len(bg_inds) > num_bg:
-      disable_inds = npr.choice(
-          bg_inds, size=(len(bg_inds) - num_bg), replace=False)
+      print("if 1")
+      disable_inds = np.random.choice(bg_inds, size=(len(bg_inds) - num_bg), replace=False)
+      print(disable_inds)
       labels[disable_inds] = -1
-
+      print(labels)
+    print("labels")
+    print(np.where(labels == -1)[0])
+    print(np.where(labels == 0)[0])
+    print(np.where(labels == 1)[0])
     #bbox_targets = np.zeros((len(inds_inside), 4), dtype=np.float32)
     #bbox_targets = _compute_targets(anchors, gt_boxes[argmax_overlaps, :])
+    print(gt_boxes[argmax_overlaps, :])
     bbox_targets = bbox_transform(anchors, gt_boxes[argmax_overlaps, :])
-
+    print(bbox_targets[0:2])
     # map up to original set of anchors
     labels = _unmap(labels, total_anchors, inds_inside, fill=-1)
+    print(labels)
     bbox_targets = _unmap(bbox_targets, total_anchors, inds_inside, fill=0)
-
+    print(bbox_targets)
+    print("rpn_targets end")
     return labels, bbox_targets
 
   # I need to know the original image size (or have the scaling factor)
   def get_roi_boxes(self, anchors, rpn_map, rpn_bbox_deltas, im):
     # TODO fix this!!!
     im_info = (100, 100, 1)
-
+    print("get_roi_boxes")
+    print(anchors.shape)
+    print(rpn_map.shape)
+    print(rpn_bbox_deltas.shape)
+    print(im.shape)
     bbox_deltas = rpn_bbox_deltas.data.numpy()
     bbox_deltas = bbox_deltas.transpose((0, 2, 3, 1)).reshape((-1, 4))
-
+    print(bbox_deltas.shape)
     # the first set of _num_anchors channels are bg probs
     # the second set are the fg probs, which we want
     #scores = bottom[0].data[:, self._num_anchors:, :, :]
     scores = rpn_map.data[:, self._num_anchors:, :, :].numpy()
     scores = scores.transpose((0, 2, 3, 1)).reshape((-1, 1))
-
+    print("get_roi_boxes 11111111")
+    print(scores.shape)
+    print(scores[0:2])
     # Convert anchors into proposals via bbox transformations
     proposals = bbox_transform_inv(anchors, bbox_deltas)
-
+    print(proposals.shape)
+    print(proposals[0:2])
     # 2. clip predicted boxes to image
     proposals = clip_boxes(proposals, im.size()[-2:])
-
+    print(proposals.shape)
+    print(proposals[0:2])
     # 3. remove predicted boxes with either height or width < threshold
     # (NOTE: convert min_size to input image scale stored in im_info[2])
     keep = filter_boxes(proposals, self.min_size * im_info[2])
     proposals = proposals[keep, :]
     scores = scores[keep]
-
+    print("get_roi_boxes 222222222")
+    print(keep)
+    print(proposals.shape)
+    print(proposals[0:2])
+    print(scores.shape)
+    print(scores[0:2])
     # 4. sort all (proposal, score) pairs by score from highest to lowest
     # 5. take top pre_nms_topN (e.g. 6000)
     order = scores.ravel().argsort()[::-1]
+    print(order.shape)
+    print(order)
     if self.pre_nms_topN > 0:
+      print("if pre_nms_topN 111111")
       order = order[:self.pre_nms_topN]
+      print(order.shape)
+      print(order)
     proposals = proposals[order, :]
     scores = scores[order]
-
+    print(proposals.shape)
+    print(proposals[0:2])
+    print(scores.shape)
+    print(scores[0:2])
     # 6. apply nms (e.g. threshold = 0.7)
     # 7. take after_nms_topN (e.g. 300)
     # 8. return the top proposals (-> RoIs top)
-    keep = nms(np.hstack((proposals, scores)), self.nms_thresh)
+    keep = py_cpu_nms(np.hstack((proposals, scores)), self.nms_thresh)
+    print("get_roi_boxes 333333333")
+    print(keep)
     if self.post_nms_topN > 0:
       keep = keep[:self.post_nms_topN]
+      print("if pre_nms_topN 111111")
+      print(keep)
     proposals = proposals[keep, :]
     scores = scores[keep]
-
+    print(proposals.shape)
+    print(proposals[0:2])
+    print(scores.shape)
+    print(scores[0:2])
     return proposals, scores
 
   def rpn_loss(self, rpn_map, rpn_bbox_transform, rpn_labels, rpn_bbox_targets):
+    print("rpn_loss")
+    print(rpn_map.shape)
+    print(rpn_bbox_transform.shape)
+    print(rpn_labels.shape)
+    print(rpn_bbox_targets.shape)
     height, width = rpn_map.size()[-2:]
 
     rpn_map = rpn_map.view(-1, 2, height, width).permute(0,2,3,1).contiguous().view(-1, 2)
     labels = torch.from_numpy(rpn_labels).long() # convert properly
     labels = labels.view(1, height, width, -1).permute(0, 3, 1, 2).contiguous()
     labels = labels.view(-1)
-  
+    print(labels.shape)
+    print(labels)
     idx = labels.ge(0).nonzero()[:,0]
-    rpn_map = rpn_map.index_select(0, Variable(idx, requires_grad=False))
+    print(idx)
+    rpn_map = rpn_map.index_select(0, idx.detach())
     labels = labels.index_select(0, idx)
-    labels = Variable(labels, requires_grad=False)
-    
+    labels = labels.detach()
+    print(rpn_map.shape)
+    print(labels.shape)
     rpn_bbox_targets = torch.from_numpy(rpn_bbox_targets)
     rpn_bbox_targets = rpn_bbox_targets.view(1, height, width, -1).permute(0, 3, 1, 2)
-    rpn_bbox_targets = Variable(rpn_bbox_targets, requires_grad=False)
-
+    rpn_bbox_targets = rpn_bbox_targets.detach()
+    print(rpn_bbox_targets.shape)
     cls_crit = nn.CrossEntropyLoss()
     reg_crit = nn.SmoothL1Loss()
     cls_loss = cls_crit(rpn_map, labels)
@@ -248,33 +294,22 @@ def _unmap(data, count, inds, fill=0):
         ret[inds, :] = data
     return ret
 
-
 def show(img, boxes, label):
     from PIL import Image, ImageDraw
     import torchvision.transforms as transforms
-    #img, target = self.__getitem__(index)
     img = transforms.ToPILImage()(img)
     draw = ImageDraw.Draw(img)
     for obj, t in zip(boxes, label):
-        #print(type(t))
-        if t == 1:
-            #print(t)
-            draw.rectangle(obj[0:4].tolist(), outline=(255,0,0))
-            #draw.text(obj[0:2].tolist(), cls[t], fill=(0,255,0))
-        #else:
-        elif t == 0:
-            #pass
-            draw.rectangle(obj[0:4].tolist(), outline=(0,0,255))
+        draw.rectangle(obj.tolist(), outline=(255,0,0))
+        draw.text(obj[0:2].tolist(), "score is {}".format(t), fill=(0,255,0))
     img.show()
-
-
 
 if __name__ == '__main__':
   import torch
   from voc import VOCDetection, TransformVOCDetectionAnnotation
   import torchvision.transforms as transforms
 
-  class RPNClassifier(nn.Container):
+  class RPNClassifier(nn.Module):
     def __init__(self, n):
       super(RPNClassifier, self).__init__()
       self.m1 = nn.Conv2d(n, 18, 3, 1, 1)
@@ -294,7 +329,7 @@ if __name__ == '__main__':
   class_to_ind = dict(zip(cls, range(len(cls))))
 
 
-  train = VOCDetection('/home/francisco/work/datasets/VOCdevkit/', 'train',
+  train = VOCDetection('/media/alex/my_disk/VOCdevkit/', 'train',
             transform=transforms.ToTensor(),
             target_transform=TransformVOCDetectionAnnotation(class_to_ind, False))
   
@@ -302,8 +337,8 @@ if __name__ == '__main__':
   im0 = im
 
   im = im.unsqueeze(0)
-
-  feats = Variable(torch.rand(1,3,im.size(2)/16, im.size(3)/16))
+  print("im shape")
+  feats = torch.rand(1,3,im.size(2)/128, im.size(3)/128)
   print(feats.size())
   print(im.size())
 
@@ -313,10 +348,11 @@ if __name__ == '__main__':
   t = time.time()
   #boxes, scores, loss, labels = rpn(im, feats, gt)
   boxes, scores, loss = rpn(im, feats, gt)
-  print time.time() - t
-  print loss
+  print("rpn runtime is {}".format(time.time() - t))
+  print(len(boxes))
+  print(boxes[0:2])
+  print(scores[0:2])
+  print(loss.item())
   loss.backward()
 
-  show(im0, boxes.data, labels.data.int().tolist())
-
-  #from IPython import embed; embed()
+  show(im0, boxes.data, scores.data)

@@ -4,7 +4,7 @@ from roi_pooling import roi_pooling as _roi_pooling
 from rpn import RPN as _RPN
 from faster_rcnn import FasterRCNN as _FasterRCNN
 
-class _Features(nn.Container):
+class _Features(nn.Module):
   def __init__(self):
     super(_Features, self).__init__()
     self.m = nn.Conv2d(3, 3, 3, 16, 1)
@@ -12,7 +12,7 @@ class _Features(nn.Container):
   def forward(self, x):
     return self.m(x)
 
-class _Classifier(nn.Container):
+class _Classifier(nn.Module):
   def __init__(self):
     super(_Classifier, self).__init__()
     self.m1 = nn.Linear(3*7*7, 21)
@@ -25,7 +25,7 @@ def _pooler(x, rois):
   x = _roi_pooling(x, rois, size=(7,7), spatial_scale=1.0/16.0)
   return x.view(x.size(0), -1)
 
-class _RPNClassifier(nn.Container):
+class _RPNClassifier(nn.Module):
   def __init__(self, n):
     super(_RPNClassifier, self).__init__()
     self.m1 = nn.Conv2d(n, 18, 3, 1, 1)

@@ -1,16 +1,13 @@
 import torch
 import torch.nn as nn
-from torch.autograd import Variable
 import numpy as np
-import numpy.random as npr
 
-from utils import \
-    bbox_transform, bbox_transform_inv, clip_boxes, bbox_overlaps
+from utils import bbox_transform, bbox_transform_inv, clip_boxes, bbox_overlaps
 
-from utils import to_var as _tovar
+from utils import to_tensor
 
 # should handle multiple scales, how?
-class FasterRCNN(nn.Container):
+class FasterRCNN(nn.Module):
 
   def __init__(self,
           features, pooler,
@@ -43,7 +40,7 @@ class FasterRCNN(nn.Container):
 
     assert im.size(0) == 1, 'only single element batches supported'
 
-    feats = self.features(_tovar(im))
+    feats = self.features(to_tensor(im))
 
     roi_boxes, rpn_prob, rpn_loss = self.rpn(im, feats, gt)
 
@@ -68,6 +65,7 @@ class FasterRCNN(nn.Container):
 
     return scores, boxes
 
+  #scores shape (num_clssses,) bbox_pred (num_classes*4,)
   def frcnn_loss(self, scores, bbox_pred, labels, bbox_targets):
     cls_crit = nn.CrossEntropyLoss()
     cls_loss = cls_crit(scores, labels)
@@ -100,15 +98,17 @@ class FasterRCNN(nn.Container):
         all_rois, gt_boxes, gt_labels, fg_rois_per_image,
         rois_per_image, self._num_classes)
     
-    return _tovar((all_rois, labels, rois, bbox_targets))
+    return to_tensor((all_rois, labels, rois, bbox_targets))
 
   def bbox_reg(self, boxes, box_deltas, im):
     boxes = boxes.data[:,1:].numpy()
     box_deltas = box_deltas.data.numpy()
     pred_boxes = bbox_transform_inv(boxes, box_deltas)
     pred_boxes = clip_boxes(pred_boxes, im.size()[-2:])
-    return _tovar(pred_boxes)
+    return to_tensor(pred_boxes)
     
+
+    #bbox_target_data type numpy.ndarray shape (128,5) num_classes 21
 def _get_bbox_regression_labels(bbox_target_data, num_classes):
     """Bounding-box regression targets (bbox_target_data) are stored in a
     compact form N x (class, tx, ty, tw, th)
@@ -118,14 +118,18 @@ def _get_bbox_regression_labels(bbox_target_data, num_classes):
         bbox_target (ndarray): N x 4K blob of regression targets
         bbox_inside_weights (ndarray): N x 4K blob of loss weights
     """
-
+    print("in _get_bbox_regression_labels")
+    print(bbox_target_data.shape)
+    print(type(bbox_target_data))
+    print(bbox_target_data[0:2])
+    print(num_classes)
     clss = bbox_target_data[:, 0]
     bbox_targets = np.zeros((clss.size, 4 * num_classes), dtype=np.float32)
     bbox_inside_weights = np.zeros(bbox_targets.shape, dtype=np.float32)
     inds = np.where(clss > 0)[0]
     for ind in inds:
         cls = clss[ind]
-        start = 4 * cls
+        start = 0
         end = start + 4
         bbox_targets[ind, start:end] = bbox_target_data[ind, 1:]
     return bbox_targets
@@ -139,12 +143,18 @@ def _compute_targets(ex_rois, gt_rois, labels):
     assert gt_rois.shape[1] == 4
 
     targets = bbox_transform(ex_rois, gt_rois)
+    print("_compute_targets")
+    print(ex_rois.shape)
+    print(ex_rois)
+    print(gt_rois.shape)
+    print(gt_rois)
+    print(targets.shape)
+    print(targets)
     if False: #cfg.TRAIN.BBOX_NORMALIZE_TARGETS_PRECOMPUTED:
         # Optionally normalize targets by a precomputed mean and stdev
         targets = ((targets - np.array(cfg.TRAIN.BBOX_NORMALIZE_MEANS))
                 / np.array(cfg.TRAIN.BBOX_NORMALIZE_STDS))
-    return np.hstack(
-            (labels[:, np.newaxis], targets)).astype(np.float32, copy=False)
+    return np.hstack((labels[:, np.newaxis], targets)).astype(np.float32, copy=False)
 
 def _sample_rois(self, all_rois, gt_boxes, gt_labels, fg_rois_per_image, rois_per_image, num_classes):
     """Generate a random sample of RoIs comprising foreground and background
@@ -167,7 +177,7 @@ def _sample_rois(self, all_rois, gt_boxes, gt_labels, fg_rois_per_image, rois_pe
     fg_rois_per_this_image = min(fg_rois_per_image, fg_inds.size)
     # Sample foreground regions without replacement
     if fg_inds.size > 0:
-        fg_inds = npr.choice(fg_inds, size=fg_rois_per_this_image, replace=False)
+        fg_inds = np.random.choice(fg_inds, size=fg_rois_per_this_image, replace=False)
 
     # Select background RoIs as those within [BG_THRESH_LO, BG_THRESH_HI)
     bg_inds = np.where((max_overlaps < self.bg_threshold[1]) &
@@ -178,7 +188,7 @@ def _sample_rois(self, all_rois, gt_boxes, gt_labels, fg_rois_per_image, rois_pe
     bg_rois_per_this_image = min(bg_rois_per_this_image, bg_inds.size)
     # Sample background regions without replacement
     if bg_inds.size > 0:
-        bg_inds = npr.choice(bg_inds, size=bg_rois_per_this_image, replace=False)
+        bg_inds = np.random.choice(bg_inds, size=bg_rois_per_this_image, replace=False)
 
     # The indices that we're selecting (both fg and bg)
     keep_inds = np.append(fg_inds, bg_inds)
@@ -188,10 +198,6 @@ def _sample_rois(self, all_rois, gt_boxes, gt_labels, fg_rois_per_image, rois_pe
     labels[fg_rois_per_this_image:] = 0
     rois = all_rois[keep_inds]
 
-    bbox_target_data = _compute_targets(
-        rois[:, 1:5], gt_boxes[gt_assignment[keep_inds], :4], labels)
-
-    bbox_targets = \
-        _get_bbox_regression_labels(bbox_target_data, num_classes)
-
+    bbox_target_data = _compute_targets(rois[:, 1:5], gt_boxes[gt_assignment[keep_inds], :4], labels)
+    bbox_targets = _get_bbox_regression_labels(bbox_target_data, num_classes)
     return labels, rois, bbox_targets

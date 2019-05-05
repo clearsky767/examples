@@ -4,21 +4,21 @@ import time
 
 import torch
 import torch.nn as nn
+import torch.optim as optim
+
 import torch.utils.data
 import torchvision.transforms as transforms
 
-import torch.optim as optim
-
 from voc import VOCDetection, TransformVOCDetectionAnnotation
 
-import importlib
+#import importlib
 
-#from model import model
+from model import model
 
-from tqdm import tqdm
+#from tqdm import tqdm
 
 parser = argparse.ArgumentParser(description='PyTorch Faster R-CNN Training')
-parser.add_argument('data', metavar='DIR',
+parser.add_argument('--data', default='/media/alex/my_disk/VOCdevkit/', metavar='DIR',
                     help='path to dataset')
 parser.add_argument('--model', '-m', metavar='MODEL', default='model',
                     help='file containing model definition '
@@ -41,9 +41,10 @@ cls = ('__background__', # always index 0
 class_to_ind = dict(zip(cls, range(len(cls))))
 
 args = parser.parse_args()
-model = importlib.import_module(args.model).model()
-model_test = importlib.import_module(args.model).model()
-model_test.load_state_dict(model.state_dict())
+#model = importlib.import_module(args.model).model()
+#model_test = importlib.import_module(args.model).model()
+#model_test.load_state_dict(model.state_dict())
+model = model()
 
 train_data = VOCDetection(args.data, 'train',
             transform=transforms.ToTensor(),

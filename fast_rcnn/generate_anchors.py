@@ -5,8 +5,6 @@
 # Written by Ross Girshick and Sean Bell
 # --------------------------------------------------------
 
-import numpy as np
-
 # Verify that we compute the same anchors as Shaoqing's matlab implementation:
 #
 #    >> load output/rpn_cachedir/faster_rcnn_VOC2007_ZF_stage1_rpn/anchors.mat
@@ -33,6 +31,7 @@ import numpy as np
 #       [ -35.,  -79.,   52.,   96.],
 #       [ -79., -167.,   96.,  184.],
 #       [-167., -343.,  184.,  360.]])
+import numpy as np
 
 def generate_anchors(base_size=16, ratios=[0.5, 1, 2],
                      scales=2**np.arange(3, 6)):
@@ -63,20 +62,15 @@ def _mkanchors(ws, hs, x_ctr, y_ctr):
     Given a vector of widths (ws) and heights (hs) around a center
     (x_ctr, y_ctr), output a set of anchors (windows).
     """
-
     ws = ws[:, np.newaxis]
     hs = hs[:, np.newaxis]
-    anchors = np.hstack((x_ctr - 0.5 * (ws - 1),
-                         y_ctr - 0.5 * (hs - 1),
-                         x_ctr + 0.5 * (ws - 1),
-                         y_ctr + 0.5 * (hs - 1)))
+    anchors = np.hstack((x_ctr - 0.5 * (ws - 1),y_ctr - 0.5 * (hs - 1),x_ctr + 0.5 * (ws - 1),y_ctr + 0.5 * (hs - 1)))
     return anchors
 
 def _ratio_enum(anchor, ratios):
     """
     Enumerate a set of anchors for each aspect ratio wrt an anchor.
     """
-
     w, h, x_ctr, y_ctr = _whctrs(anchor)
     size = w * h
     size_ratios = size / ratios
@@ -89,7 +83,6 @@ def _scale_enum(anchor, scales):
     """
     Enumerate a set of anchors for each scale wrt an anchor.
     """
-
     w, h, x_ctr, y_ctr = _whctrs(anchor)
     ws = w * scales
     hs = h * scales
@@ -101,5 +94,4 @@ if __name__ == '__main__':
     t = time.time()
     a = generate_anchors()
     print time.time() - t
-    print a
-    from IPython import embed; embed()
+    print a.shape
