@@ -20,6 +20,7 @@ def bbox_transform(ex_rois, gt_rois):
     """
     gt_rois box is l,r,u,d mode type numpy shape (n,4)
     ex_rois box is l,r,u,d mode type numpy shape (n,4)
+    targets type numpy shape (n,4)
     """
     ex_widths = ex_rois[:, 2] - ex_rois[:, 0] + 1.0
     ex_heights = ex_rois[:, 3] - ex_rois[:, 1] + 1.0
@@ -38,7 +39,7 @@ def bbox_transform(ex_rois, gt_rois):
 
     targets = np.vstack(
         (targets_dx, targets_dy, targets_dw, targets_dh)).transpose()
-    print("")
+    print("in bbox_transform")
     print(ex_rois.shape)
     print(ex_rois[0:2])
     print(gt_rois.shape)
@@ -82,7 +83,7 @@ def bbox_transform_inv(boxes, deltas):
     pred_boxes[:, 2::4] = pred_ctr_x + 0.5 * pred_w
     # y2
     pred_boxes[:, 3::4] = pred_ctr_y + 0.5 * pred_h
-    print("bbox_transform_inv")
+    print("in bbox_transform_inv")
     print(boxes.shape)
     print(boxes[0:2])
     print(deltas.shape)

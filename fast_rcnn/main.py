@@ -10,11 +10,8 @@ import torch.utils.data
 import torchvision.transforms as transforms
 
 from voc import VOCDetection, TransformVOCDetectionAnnotation
-
 #import importlib
-
 from model import model
-
 #from tqdm import tqdm
 
 parser = argparse.ArgumentParser(description='PyTorch Faster R-CNN Training')
@@ -89,7 +86,7 @@ def train(train_loader, model, optimizer, epoch):
     loss.backward()
     optimizer.step()
     
-    losses.update(loss.data[0], im.size(0))
+    losses.update(loss.item(), im.size(0))
 
     # measure elapsed time
     batch_time.update(time.time() - end)
@@ -106,6 +103,8 @@ def train(train_loader, model, optimizer, epoch):
             data_time=data_time, loss=losses,
             #top1=top1, top5=top5
             ))
+    #TODO:for test
+    break;
       #global model_test
       #assert model.state_dict() == model_test.state_dict()
 
@@ -166,6 +165,8 @@ class AverageMeter(object):
 for epoch in range(0, 10):
   train(train_loader, model, optimizer, epoch)
   #validate(val_loader, model)
+  #TODO:for test
+  break;
 
 #from IPython import embed; embed()
 

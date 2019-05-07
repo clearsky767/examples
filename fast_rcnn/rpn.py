@@ -35,6 +35,7 @@ class RPN(nn.Module):
 
   # output rpn probs as well
   def forward(self, im, feats, gt=None):
+    print("in RPN forward")
     assert im.size(0) == 1, 'only single element batches supported'
     # improve
     # it is used in get_anchors and also present in roi_pooling
@@ -86,9 +87,13 @@ class RPN(nn.Module):
   # restructure because we don't want -1 in labels
   # shouldn't we instead keep only the bboxes for which labels >= 0?
   def rpn_targets(self, all_anchors, im, gt):
+    print("in rpn_targets")
     total_anchors = all_anchors.shape[0]
     gt_boxes = gt['boxes']
-
+    print(all_anchors.shape)
+    print(all_anchors[0:2])
+    print(gt_boxes.shape)
+    print(gt_boxes[0:2])
     height, width = im.size()[-2:]
     # only keep anchors inside the image
     _allowed_border = 0
@@ -98,11 +103,12 @@ class RPN(nn.Module):
          (all_anchors[:, 2] < width  + _allowed_border) &  # width
          (all_anchors[:, 3] < height + _allowed_border)    # height
     )[0]
-     
+    print(inds_inside)
     # keep only inside anchors
     anchors = all_anchors[inds_inside, :]
     assert anchors.shape[0] > 0, '{0}x{1} -> {2}'.format(height,width,total_anchors)
-
+    print(anchors.shape)
+    print(anchors[0:2])
     # label: 1 is positive, 0 is negative, -1 is dont care
     labels = np.empty((len(inds_inside), ), dtype=np.float32)
     labels.fill(-1)
@@ -111,7 +117,7 @@ class RPN(nn.Module):
     # overlaps (ex, gt)
     #overlaps = bbox_overlaps(anchors, gt_boxes)#.numpy()
     overlaps = bbox_overlaps(torch.from_numpy(anchors), gt_boxes).numpy()
-    print("rpn_targets start")
+    
     print(overlaps)
     gt_boxes = gt_boxes.numpy()
     print(gt_boxes)
@@ -168,8 +174,10 @@ class RPN(nn.Module):
     print(bbox_targets[0:2])
     # map up to original set of anchors
     labels = _unmap(labels, total_anchors, inds_inside, fill=-1)
+    print(labels.shape)
     print(labels)
     bbox_targets = _unmap(bbox_targets, total_anchors, inds_inside, fill=0)
+    print(bbox_targets.shape)
     print(bbox_targets)
     print("rpn_targets end")
     return labels, bbox_targets

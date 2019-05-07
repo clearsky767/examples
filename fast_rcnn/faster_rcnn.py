@@ -31,6 +31,7 @@ class FasterRCNN(nn.Module):
 
   # should it support batched images ?
   def forward(self, x):
+    print("in FasterRCNN forward")
     #if self.training is True:
     if isinstance(x, tuple):
       im, gt = x
@@ -77,9 +78,18 @@ class FasterRCNN(nn.Module):
     return loss
 
   def frcnn_targets(self, all_rois, im, gt):
+    print("in frcnn_targets")
+    print(all_rois.shape)
+    print(all_rois[0:2])
+    print(im.shape)
+    print(im[0:2])
     all_rois = all_rois.data.numpy()
     gt_boxes = gt['boxes'].numpy()
     gt_labels = np.array(gt['gt_classes'])
+    print(gt_boxes.shape)
+    print(gt_boxes[0:2])
+    print(gt_labels.shape)
+    print(gt_labels[0:2])
     #zeros = np.zeros((gt_boxes.shape[0], 1), dtype=gt_boxes.dtype)
     #all_rois = np.vstack(
     #    (all_rois, np.hstack((zeros, gt_boxes[:, :-1])))
@@ -87,11 +97,12 @@ class FasterRCNN(nn.Module):
     all_rois = np.vstack((all_rois, gt_boxes))
     zeros = np.zeros((all_rois.shape[0], 1), dtype=all_rois.dtype)
     all_rois = np.hstack((zeros, all_rois))
-    
+    print(all_rois.shape)
+    print(all_rois[0:2])
     num_images = 1
     rois_per_image = self.batch_size / num_images
-    fg_rois_per_image = np.round(self.fg_fraction * rois_per_image)
-    
+    fg_rois_per_image = int(np.round(self.fg_fraction * rois_per_image))
+    print(fg_rois_per_image)
     # Sample rois with classification labels and bounding box regression
     # targets
     labels, rois, bbox_targets = _sample_rois(self,
@@ -101,10 +112,23 @@ class FasterRCNN(nn.Module):
     return to_tensor((all_rois, labels, rois, bbox_targets))
 
   def bbox_reg(self, boxes, box_deltas, im):
+    print("in bbox_reg")
+    print(boxes.shape)
+    print(boxes[0:2])
+    print(box_deltas.shape)
+    print(box_deltas[0:2])
+    print(im.shape)
+    print(im[0:2])
     boxes = boxes.data[:,1:].numpy()
+    print(boxes.shape)
+    print(boxes[0:2])
     box_deltas = box_deltas.data.numpy()
     pred_boxes = bbox_transform_inv(boxes, box_deltas)
+    print(pred_boxes.shape)
+    print(pred_boxes[0:2])
     pred_boxes = clip_boxes(pred_boxes, im.size()[-2:])
+    print(pred_boxes.shape)
+    print(pred_boxes[0:2])
     return to_tensor(pred_boxes)
     
 
@@ -125,13 +149,15 @@ def _get_bbox_regression_labels(bbox_target_data, num_classes):
     print(num_classes)
     clss = bbox_target_data[:, 0]
     bbox_targets = np.zeros((clss.size, 4 * num_classes), dtype=np.float32)
-    bbox_inside_weights = np.zeros(bbox_targets.shape, dtype=np.float32)
+    #bbox_inside_weights = np.zeros(bbox_targets.shape, dtype=np.float32)
     inds = np.where(clss > 0)[0]
+    print(inds.shape)
+    print(inds)
     for ind in inds:
         cls = clss[ind]
-        start = 0
+        start = cls*4
         end = start + 4
-        bbox_targets[ind, start:end] = bbox_target_data[ind, 1:]
+        bbox_targets[ind, int(start):int(end)] = bbox_target_data[ind, 1:]
     return bbox_targets
 
 
@@ -143,13 +169,13 @@ def _compute_targets(ex_rois, gt_rois, labels):
     assert gt_rois.shape[1] == 4
 
     targets = bbox_transform(ex_rois, gt_rois)
-    print("_compute_targets")
+    print("in _compute_targets")
     print(ex_rois.shape)
-    print(ex_rois)
+    print(ex_rois[0:2])
     print(gt_rois.shape)
-    print(gt_rois)
+    print(gt_rois[0:2])
     print(targets.shape)
-    print(targets)
+    print(targets[0:2])
     if False: #cfg.TRAIN.BBOX_NORMALIZE_TARGETS_PRECOMPUTED:
         # Optionally normalize targets by a precomputed mean and stdev
         targets = ((targets - np.array(cfg.TRAIN.BBOX_NORMALIZE_MEANS))
@@ -164,17 +190,24 @@ def _sample_rois(self, all_rois, gt_boxes, gt_labels, fg_rois_per_image, rois_pe
     overlaps = bbox_overlaps(
         np.ascontiguousarray(all_rois[:, 1:5], dtype=np.float),
         np.ascontiguousarray(gt_boxes[:, :4], dtype=np.float))
+    print("in _sample_rois")
+    print(overlaps.shape)
+    print(overlaps.shape[0:2])
     overlaps = overlaps.numpy()
     gt_assignment = overlaps.argmax(axis=1)
     max_overlaps = overlaps.max(axis=1)
     #labels = gt_boxes[gt_assignment, 4]
     labels = gt_labels[gt_assignment]
-
+    print(gt_assignment)
+    print(max_overlaps)
+    print(labels)
     # Select foreground RoIs as those with >= FG_THRESH overlap
     fg_inds = np.where(max_overlaps >= self.fg_threshold)[0]
+    print(fg_inds)
     # Guard against the case when an image has fewer than fg_rois_per_image
     # foreground RoIs
     fg_rois_per_this_image = min(fg_rois_per_image, fg_inds.size)
+    print(fg_rois_per_this_image)
     # Sample foreground regions without replacement
     if fg_inds.size > 0:
         fg_inds = np.random.choice(fg_inds, size=fg_rois_per_this_image, replace=False)
@@ -182,6 +215,7 @@ def _sample_rois(self, all_rois, gt_boxes, gt_labels, fg_rois_per_image, rois_pe
     # Select background RoIs as those within [BG_THRESH_LO, BG_THRESH_HI)
     bg_inds = np.where((max_overlaps < self.bg_threshold[1]) &
                        (max_overlaps >= self.bg_threshold[0]))[0]
+    print(bg_inds)
     # Compute number of background RoIs to take from this image (guarding
     # against there being fewer than desired)
     bg_rois_per_this_image = rois_per_image - fg_rois_per_this_image
@@ -192,12 +226,20 @@ def _sample_rois(self, all_rois, gt_boxes, gt_labels, fg_rois_per_image, rois_pe
 
     # The indices that we're selecting (both fg and bg)
     keep_inds = np.append(fg_inds, bg_inds)
+    print(keep_inds)
     # Select sampled values from various arrays:
     labels = labels[keep_inds]
+    print(labels)
     # Clamp labels for the background RoIs to 0
     labels[fg_rois_per_this_image:] = 0
     rois = all_rois[keep_inds]
+    print(rois[0:2])
 
     bbox_target_data = _compute_targets(rois[:, 1:5], gt_boxes[gt_assignment[keep_inds], :4], labels)
     bbox_targets = _get_bbox_regression_labels(bbox_target_data, num_classes)
+    print(bbox_target_data.shape)
+    print(bbox_target_data[0:2])
+    print(bbox_targets.shape)
+    print(bbox_targets[0:2])
+    print("_sample_rois end")
     return labels, rois, bbox_targets
