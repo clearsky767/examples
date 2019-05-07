@@ -53,10 +53,14 @@ def roi_pooling(input, rois, size=(7,7), spatial_scale=1.0):
 
 if __name__ == '__main__':
     input = torch.rand((1,1,10,10), requires_grad=True)
-    rois = torch.LongTensor([[0,1,2,7,8],[0,3,3,8,8]],requires_grad=False)
-
+    rois = torch.tensor([[0,1,2,7,8],[0,3,3,8,8]],requires_grad=False)
+    print(input)
+    print(rois)
     out = adaptive_max_pool(input,(3,3))
+    print(out.shape)
+    print(out)
     out.backward(out.data.clone().uniform_())
-
+    print(out.shape)
+    print(out)
     out = roi_pooling(input, rois, size=(3,3))
     out.backward(out.data.clone().uniform_())

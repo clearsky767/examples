@@ -103,8 +103,6 @@ def train(train_loader, model, optimizer, epoch):
             data_time=data_time, loss=losses,
             #top1=top1, top5=top5
             ))
-    #TODO:for test
-    break;
       #global model_test
       #assert model.state_dict() == model_test.state_dict()
 
@@ -164,9 +162,7 @@ class AverageMeter(object):
 
 for epoch in range(0, 10):
   train(train_loader, model, optimizer, epoch)
-  #validate(val_loader, model)
-  #TODO:for test
-  break;
+  validate(val_loader, model)
 
 #from IPython import embed; embed()
 

@@ -10,7 +10,6 @@ class _Features(nn.Module):
     self.m = nn.Conv2d(3, 3, 3, 16, 1)
 
   def forward(self, x):
-    print("in _Features forward")
     return self.m(x)
 
 class _Classifier(nn.Module):
@@ -20,7 +19,6 @@ class _Classifier(nn.Module):
     self.m2 = nn.Linear(3*7*7, 21*4)
 
   def forward(self, x):
-    print("in _Classifier forward")
     return self.m1(x), self.m2(x)
 
 def _pooler(x, rois):
@@ -34,7 +32,6 @@ class _RPNClassifier(nn.Module):
     self.m2 = nn.Conv2d(n, 36, 3, 1, 1)
 
   def forward(self, x):
-    print("in _RPNClassifier forward")
     return self.m1(x), self.m2(x)
 
 def model():

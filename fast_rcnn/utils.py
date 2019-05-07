@@ -39,13 +39,6 @@ def bbox_transform(ex_rois, gt_rois):
 
     targets = np.vstack(
         (targets_dx, targets_dy, targets_dw, targets_dh)).transpose()
-    print("in bbox_transform")
-    print(ex_rois.shape)
-    print(ex_rois[0:2])
-    print(gt_rois.shape)
-    print(gt_rois[0:2])
-    print(targets.shape)
-    print(targets[0:2])
     return targets
 
 def bbox_transform_inv(boxes, deltas):
@@ -83,11 +76,6 @@ def bbox_transform_inv(boxes, deltas):
     pred_boxes[:, 2::4] = pred_ctr_x + 0.5 * pred_w
     # y2
     pred_boxes[:, 3::4] = pred_ctr_y + 0.5 * pred_h
-    print("in bbox_transform_inv")
-    print(boxes.shape)
-    print(boxes[0:2])
-    print(deltas.shape)
-    print(deltas[0:2])
     return pred_boxes
 
 def clip_boxes(boxes, im_shape):

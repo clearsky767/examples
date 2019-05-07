@@ -35,7 +35,6 @@ class RPN(nn.Module):
 
   # output rpn probs as well
   def forward(self, im, feats, gt=None):
-    print("in RPN forward")
     assert im.size(0) == 1, 'only single element batches supported'
     # improve
     # it is used in get_anchors and also present in roi_pooling
@@ -61,7 +60,6 @@ class RPN(nn.Module):
     if False:
       roi_boxes = all_anchors
       return to_tensor((roi_boxes, scores, rpn_loss, rpn_labels))
-
     return to_tensor((roi_boxes, scores, rpn_loss))
 
 
@@ -87,13 +85,8 @@ class RPN(nn.Module):
   # restructure because we don't want -1 in labels
   # shouldn't we instead keep only the bboxes for which labels >= 0?
   def rpn_targets(self, all_anchors, im, gt):
-    print("in rpn_targets")
     total_anchors = all_anchors.shape[0]
     gt_boxes = gt['boxes']
-    print(all_anchors.shape)
-    print(all_anchors[0:2])
-    print(gt_boxes.shape)
-    print(gt_boxes[0:2])
     height, width = im.size()[-2:]
     # only keep anchors inside the image
     _allowed_border = 0
@@ -103,12 +96,9 @@ class RPN(nn.Module):
          (all_anchors[:, 2] < width  + _allowed_border) &  # width
          (all_anchors[:, 3] < height + _allowed_border)    # height
     )[0]
-    print(inds_inside)
     # keep only inside anchors
     anchors = all_anchors[inds_inside, :]
     assert anchors.shape[0] > 0, '{0}x{1} -> {2}'.format(height,width,total_anchors)
-    print(anchors.shape)
-    print(anchors[0:2])
     # label: 1 is positive, 0 is negative, -1 is dont care
     labels = np.empty((len(inds_inside), ), dtype=np.float32)
     labels.fill(-1)
@@ -118,168 +108,93 @@ class RPN(nn.Module):
     #overlaps = bbox_overlaps(anchors, gt_boxes)#.numpy()
     overlaps = bbox_overlaps(torch.from_numpy(anchors), gt_boxes).numpy()
     
-    print(overlaps)
     gt_boxes = gt_boxes.numpy()
-    print(gt_boxes)
     argmax_overlaps = overlaps.argmax(axis=1)
-    print(argmax_overlaps)
     max_overlaps = overlaps[np.arange(len(inds_inside)), argmax_overlaps]
-    print(max_overlaps)
     gt_argmax_overlaps = overlaps.argmax(axis=0)
-    print(gt_argmax_overlaps)
     gt_max_overlaps = overlaps[gt_argmax_overlaps,np.arange(overlaps.shape[1])]
-    print(gt_max_overlaps)
     gt_argmax_overlaps = np.where(overlaps == gt_max_overlaps)[0]
-    print(gt_argmax_overlaps)
     # assign bg labels first so that positive labels can clobber them
     labels[max_overlaps < self.negative_overlap] = 0
-    print(labels)
     # fg label: for each gt, anchor with highest overlap
     labels[gt_argmax_overlaps] = 1
-    print(labels)
     # fg label: above threshold IOU
     labels[max_overlaps >= self.positive_overlap] = 1
-    print(labels)
     # subsample positive labels if we have too many
     num_fg = int(self.fg_fraction * self.batch_size)
-    print(num_fg)
     fg_inds = np.where(labels == 1)[0]
-    print(fg_inds)
     if len(fg_inds) > num_fg:
-      print("if 1")
       disable_inds = np.random.choice(fg_inds, size=(len(fg_inds) - num_fg), replace=False)
-      print(disable_inds)
       labels[disable_inds] = -1
-      print(labels)
 
     # subsample negative labels if we have too many
     num_bg = self.batch_size - np.sum(labels == 1)
-    print(num_bg)
     bg_inds = np.where(labels == 0)[0]
-    print(bg_inds)
     if len(bg_inds) > num_bg:
-      print("if 1")
       disable_inds = np.random.choice(bg_inds, size=(len(bg_inds) - num_bg), replace=False)
-      print(disable_inds)
       labels[disable_inds] = -1
-      print(labels)
-    print("labels")
-    print(np.where(labels == -1)[0])
-    print(np.where(labels == 0)[0])
-    print(np.where(labels == 1)[0])
     #bbox_targets = np.zeros((len(inds_inside), 4), dtype=np.float32)
     #bbox_targets = _compute_targets(anchors, gt_boxes[argmax_overlaps, :])
-    print(gt_boxes[argmax_overlaps, :])
     bbox_targets = bbox_transform(anchors, gt_boxes[argmax_overlaps, :])
-    print(bbox_targets[0:2])
     # map up to original set of anchors
     labels = _unmap(labels, total_anchors, inds_inside, fill=-1)
-    print(labels.shape)
-    print(labels)
     bbox_targets = _unmap(bbox_targets, total_anchors, inds_inside, fill=0)
-    print(bbox_targets.shape)
-    print(bbox_targets)
-    print("rpn_targets end")
     return labels, bbox_targets
 
   # I need to know the original image size (or have the scaling factor)
   def get_roi_boxes(self, anchors, rpn_map, rpn_bbox_deltas, im):
     # TODO fix this!!!
     im_info = (100, 100, 1)
-    print("get_roi_boxes")
-    print(anchors.shape)
-    print(rpn_map.shape)
-    print(rpn_bbox_deltas.shape)
-    print(im.shape)
+    
     bbox_deltas = rpn_bbox_deltas.data.numpy()
     bbox_deltas = bbox_deltas.transpose((0, 2, 3, 1)).reshape((-1, 4))
-    print(bbox_deltas.shape)
     # the first set of _num_anchors channels are bg probs
     # the second set are the fg probs, which we want
     #scores = bottom[0].data[:, self._num_anchors:, :, :]
     scores = rpn_map.data[:, self._num_anchors:, :, :].numpy()
     scores = scores.transpose((0, 2, 3, 1)).reshape((-1, 1))
-    print("get_roi_boxes 11111111")
-    print(scores.shape)
-    print(scores[0:2])
     # Convert anchors into proposals via bbox transformations
     proposals = bbox_transform_inv(anchors, bbox_deltas)
-    print(proposals.shape)
-    print(proposals[0:2])
     # 2. clip predicted boxes to image
     proposals = clip_boxes(proposals, im.size()[-2:])
-    print(proposals.shape)
-    print(proposals[0:2])
     # 3. remove predicted boxes with either height or width < threshold
     # (NOTE: convert min_size to input image scale stored in im_info[2])
     keep = filter_boxes(proposals, self.min_size * im_info[2])
     proposals = proposals[keep, :]
     scores = scores[keep]
-    print("get_roi_boxes 222222222")
-    print(keep)
-    print(proposals.shape)
-    print(proposals[0:2])
-    print(scores.shape)
-    print(scores[0:2])
     # 4. sort all (proposal, score) pairs by score from highest to lowest
     # 5. take top pre_nms_topN (e.g. 6000)
     order = scores.ravel().argsort()[::-1]
-    print(order.shape)
-    print(order)
     if self.pre_nms_topN > 0:
-      print("if pre_nms_topN 111111")
       order = order[:self.pre_nms_topN]
-      print(order.shape)
-      print(order)
     proposals = proposals[order, :]
     scores = scores[order]
-    print(proposals.shape)
-    print(proposals[0:2])
-    print(scores.shape)
-    print(scores[0:2])
     # 6. apply nms (e.g. threshold = 0.7)
     # 7. take after_nms_topN (e.g. 300)
     # 8. return the top proposals (-> RoIs top)
     keep = py_cpu_nms(np.hstack((proposals, scores)), self.nms_thresh)
-    print("get_roi_boxes 333333333")
-    print(keep)
     if self.post_nms_topN > 0:
       keep = keep[:self.post_nms_topN]
-      print("if pre_nms_topN 111111")
-      print(keep)
     proposals = proposals[keep, :]
     scores = scores[keep]
-    print(proposals.shape)
-    print(proposals[0:2])
-    print(scores.shape)
-    print(scores[0:2])
     return proposals, scores
 
   def rpn_loss(self, rpn_map, rpn_bbox_transform, rpn_labels, rpn_bbox_targets):
-    print("rpn_loss")
-    print(rpn_map.shape)
-    print(rpn_bbox_transform.shape)
-    print(rpn_labels.shape)
-    print(rpn_bbox_targets.shape)
     height, width = rpn_map.size()[-2:]
 
     rpn_map = rpn_map.view(-1, 2, height, width).permute(0,2,3,1).contiguous().view(-1, 2)
     labels = torch.from_numpy(rpn_labels).long() # convert properly
     labels = labels.view(1, height, width, -1).permute(0, 3, 1, 2).contiguous()
     labels = labels.view(-1)
-    print(labels.shape)
-    print(labels)
     idx = labels.ge(0).nonzero()[:,0]
-    print(idx)
     rpn_map = rpn_map.index_select(0, idx.detach())
     labels = labels.index_select(0, idx)
     labels = labels.detach()
-    print(rpn_map.shape)
-    print(labels.shape)
+
     rpn_bbox_targets = torch.from_numpy(rpn_bbox_targets)
     rpn_bbox_targets = rpn_bbox_targets.view(1, height, width, -1).permute(0, 3, 1, 2)
     rpn_bbox_targets = rpn_bbox_targets.detach()
-    print(rpn_bbox_targets.shape)
+    
     cls_crit = nn.CrossEntropyLoss()
     reg_crit = nn.SmoothL1Loss()
     cls_loss = cls_crit(rpn_map, labels)
