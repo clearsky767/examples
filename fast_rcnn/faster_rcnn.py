@@ -31,7 +31,6 @@ class FasterRCNN(nn.Module):
 
   # should it support batched images ?
   def forward(self, x):
-    #if self.training is True:
     if isinstance(x, tuple):
       im, gt = x
     else:
@@ -39,23 +38,18 @@ class FasterRCNN(nn.Module):
       gt = None
 
     assert im.size(0) == 1, 'only single element batches supported'
-
     feats = self.features(to_tensor(im))
-
     roi_boxes, rpn_prob, rpn_loss = self.rpn(im, feats, gt)
 
-    #if self.training is True:
     if gt is not None:
       # append gt boxes and sample fg / bg boxes
       # proposal_target-layer.py
       all_rois, frcnn_labels, roi_boxes, frcnn_bbox_targets = self.frcnn_targets(roi_boxes, im, gt)
-
     # r-cnn
     regions = self.roi_pooling(feats, roi_boxes)
     scores, bbox_pred = self.classifier(regions)
     boxes = self.bbox_reg(roi_boxes, bbox_pred, im)
     # apply cls + bbox reg loss here
-    #if self.training is True:
     if gt is not None:
       frcnn_loss = self.frcnn_loss(scores, bbox_pred, frcnn_labels, frcnn_bbox_targets)
       loss = frcnn_loss + rpn_loss
@@ -115,7 +109,6 @@ def _get_bbox_regression_labels(bbox_target_data, num_classes):
     """
     clss = bbox_target_data[:, 0]
     bbox_targets = np.zeros((clss.size, 4 * num_classes), dtype=np.float32)
-    #bbox_inside_weights = np.zeros(bbox_targets.shape, dtype=np.float32)
     inds = np.where(clss > 0)[0]
     for ind in inds:
         cls = clss[ind]
