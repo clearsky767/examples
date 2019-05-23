@@ -23,7 +23,7 @@ args = parser.parse_args()
 
 fs = 125 #sampling frequency
 T = 1.0/fs #sampling period
-L = 30*fs #length of signal
+L = 15*fs #length of signal
 t = np.arange(0,L/fs,T) #time vector
 
 normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],std=[0.229, 0.224, 0.225])
@@ -73,8 +73,8 @@ def GenImgFunc(data,i):
     plt.figure()
     idx_start = i*L
     plt.plot(data[idx_start+125:idx_start+L],linewidth=0.5,color="black")
-    plt.xlim(0,3750)
-    plt.ylim(-30,30)
+    plt.xlim(0,L)
+    plt.ylim(-1500,1500)
     plt.axis('off')
     plt.savefig('./img/img_{}.png'.format(i))
     plt.clf()
@@ -151,7 +151,7 @@ def main():
     finally:
         print("now start delete imgs!")
         tm = time.time()
-        shutil.rmtree("./img")
+        #shutil.rmtree("./img")
         print("time is {}".format(time.time()-tm))
 
         print("total time is {}".format(time.time()-start_tm))

@@ -89,6 +89,7 @@ def main():
     print("time is {}".format(time.time()-tm))
 
     print(ret)
+    ret = [max(ret[2*i],ret[2*i+1]) for i in range(len(ret)/2)]
     filename = os.path.basename(args.csvfile)
     filename = filename.split(".")[0]
     filename = "./log/{}.log".format(filename)

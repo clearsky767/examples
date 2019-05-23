@@ -64,12 +64,12 @@ parser.add_argument('--gpu', default=None, type=int,
                     help='GPU id to use.')
 
 best_prec1 = 0
-
-nine_grid = [[0,0,0],[0,0,0],[0,0,0]]
+nine_grid = [[0,0],[0,0]]
 out_grid = 0
 args = parser.parse_args()
 
 def main():
+    global best_prec1
     if args.seed is not None:
         random.seed(args.seed)
         #np.random.seed(args.seed)
@@ -116,7 +116,6 @@ def main():
     optimizer = torch.optim.SGD(model.parameters(), args.lr,
                                 momentum=args.momentum,
                                 weight_decay=args.weight_decay)
-
     # optionally resume from a checkpoint
     if args.resume:
         if os.path.isfile(args.resume):
@@ -286,6 +285,8 @@ def validate(val_loader, model, criterion):
         print(' * Prec@1 {top1.avg:.3f} Prec@5 {top5.avg:.3f}'
               .format(top1=top1, top5=top5))
         print("*******************************")
+        global out_grid
+        global nine_grid
         print(nine_grid)
         print(out_grid)
 
@@ -328,36 +329,21 @@ def accuracy(output, target, topk=(1,)):
     with torch.no_grad():
         maxk = max(topk)
         batch_size = target.size(0)
-
         maxs, pred = output.topk(maxk, 1, True, True)
-        print("========================>>>")
-        print(maxs.size())
-        print(maxs)
-        print(pred.size())
-        print(pred)
-        print(target.size())
-        print(target)
-        for i in range(0,target.size(0)):
+        global out_grid
+        global nine_grid
+        for i in range(0,batch_size):
             i_t = target[i].cpu().item()
             i_p = pred[i][0].cpu().item()
-            print("i_t i_p ------------------")
-            print(i_t)
-            # print(i_t.size())
-            print(i_p)
-            print(i)
-            # print(i_p.size())
-            if i_t in (0,1,2):
-                if i_p in (0,1,2):
+            if i_t in (0,1):
+                if i_p in (0,1):
                     nine_grid[i_t][i_p]=nine_grid[i_t][i_p]+1
                 else:
-                    out_grid += 1
+                    out_grid = out_grid+1
             else:
                 out_grid = out_grid+1
-
-        print("<<<========================")
         pred = pred.t()
         correct = pred.eq(target.view(1, -1).expand_as(pred))
-
         res = []
         for k in topk:
             correct_k = correct[:k].view(-1).float().sum(0, keepdim=True)

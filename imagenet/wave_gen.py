@@ -12,7 +12,7 @@ args = parser.parse_args()
 
 fs = 125 #sampling frequency
 T = 1.0/fs #sampling period
-L = 30*fs #length of signal
+L = 15*fs #length of signal
 t = np.arange(0,L/fs,T) #time vector
 
 def mkdir(path):
@@ -30,8 +30,8 @@ def Filter(data, fs = 125):
 def GenImgFunc(data,i,filepath):
     idx_start = i*L
     plt.plot(data[idx_start+125:idx_start+L],linewidth=0.5,color="black")
-    plt.xlim(0,3750)
-    plt.ylim(-30,30)
+    plt.xlim(0,L)
+    plt.ylim(-1500,1500)
     plt.axis('off')
     plt.savefig('./{}/img_{}.png'.format(filepath,i))
     plt.clf()
