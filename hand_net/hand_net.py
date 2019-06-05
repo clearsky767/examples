@@ -207,7 +207,8 @@ if os.path.isfile(args.checkpoint):
     model.load_state_dict(checkpoint['state_dict'])
     print("loaded checkpoint '{}'".format(args.checkpoint))
 
-criterion = nn.MSELoss().cuda(args.gpu)
+criterion_mse = nn.MSELoss().cuda(args.gpu)
+criterion_smL1 = nn.SmoothL1Loss().cuda(args.gpu)
 optimizer = torch.optim.SGD(model.parameters(), args.lr,momentum=args.momentum,weight_decay=args.weight_decay)
 #optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, betas=(0.5, 0.999))
 
@@ -220,7 +221,7 @@ def adjust_learning_rate(optimizer, epoch):
 loss_train = []
 loss_test = []
 
-def train(trainloader, model, criterion, optimizer, epoch):
+def train(trainloader, model, criterion_mse, criterion_smL1,optimizer, epoch):
     batchtimes = AVGMeter()
     losses = AVGMeter()
     epochtime = time.time()
@@ -231,7 +232,7 @@ def train(trainloader, model, criterion, optimizer, epoch):
             input = input.cuda(args.gpu, non_blocking=True)
             target = target.cuda(args.gpu, non_blocking=True)
         output = model(input)
-        loss = criterion(output, target)
+        loss = criterion_mse(output, target)+criterion_smL1(output, target)
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
@@ -250,7 +251,7 @@ def train(trainloader, model, criterion, optimizer, epoch):
     print("train epoch {} time is {}".format(epoch,time.time()-epochtime))
     return losses.avg
 
-def test(testloader, model, criterion, epoch):
+def test(testloader, model, criterion_mse, criterion_smL1, epoch):
     batchtimes = AVGMeter()
     losses = AVGMeter()
     epochtime = time.time()
@@ -262,7 +263,7 @@ def test(testloader, model, criterion, epoch):
                 input = input.cuda(args.gpu, non_blocking=True)
                 target = target.cuda(args.gpu, non_blocking=True)
             output = model(input)
-            loss = criterion(output, target)
+            loss = criterion_mse(output, target)+criterion_smL1(output, target)
 
             losses.update(loss.item(), input.size(0))
             batchtimes.update(time.time() - batchtime)
@@ -284,8 +285,8 @@ def main():
     
     for epoch in range(args.epochs):
         adjust_learning_rate(optimizer, epoch)
-        train_loss = train(trainloader, model, criterion, optimizer, epoch)
-        test_loss = test(testloader, model, criterion, epoch)
+        train_loss = train(trainloader, model, criterion_mse, criterion_smL1, optimizer, epoch)
+        test_loss = test(testloader, model, criterion_mse, criterion_smL1, epoch)
         torch.save({'epoch': epoch + 1,'state_dict': model.state_dict()}, 'checkpoint_{}.pth'.format(epoch))
         if loss == None:
             loss = train_loss

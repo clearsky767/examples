@@ -7,6 +7,7 @@ import torch.backends.cudnn as cudnn
 import os
 import json
 import time
+import cv2
 import shutil
 import argparse
 import numpy as np
@@ -42,7 +43,7 @@ img_transforms = transforms.Compose([
     ])
 
 gpu = 0
-checkpoint_path = "checkpoint_65.pth"
+checkpoint_path = "checkpoint_99.pth"
 
 torch.manual_seed(1)
 if gpu is not None:
@@ -59,11 +60,21 @@ if os.path.isfile(checkpoint_path):
     model.load_state_dict(checkpoint['state_dict'])
     print("loaded checkpoint {}".format(checkpoint_path))
 
+def generate_edges(img):
+    img_path = os.path.join(os.path.realpath("test/"),img)
+    img_cv = cv2.imread(img_path)
+    img_gray = cv2.cvtColor(img_cv,cv2.COLOR_BGR2GRAY)
+    img_edges = cv2.Canny(img_gray,60,65,apertureSize = 3)
+    img_path2 = os.path.join(os.path.realpath("test/edges/"),img)
+    cv2.imwrite(img_path2,img_edges)
+    return img_path,img_path2
 
 def main():
     print("model")
+    img = "test/2.jpg"
+    #img_path,img_path2 = generate_edges(img)
     print(model)
-    img = Image.open("p20190515_h2_7.jpg").convert('RGB')
+    img = Image.open(img).convert('RGB')
     img_tensor = img_transforms(img)
     input = torch.unsqueeze(img_tensor,0)
     if gpu is not None:
