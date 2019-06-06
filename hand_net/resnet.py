@@ -99,7 +99,7 @@ class ResNet(nn.Module):
         self.layer4 = self._make_layer(block, 512, layers[3], stride=2)
         self.avgpool = nn.AvgPool2d(7, stride=1)
         self.fc = nn.Linear(512 * block.expansion, num_classes)
-        self.fc2 = nn.Linear(6400, 62)
+        self.fc2 = nn.Linear(6400, 12)
         self.sig = nn.Sigmoid()
  
         for m in self.modules():
@@ -140,16 +140,18 @@ class ResNet(nn.Module):
         x = self.conv2(x)
         x = self.bn2(x)
         x = self.relu(x)
-        x = self.conv3(x)
-        x = self.bn3(x)
+        x_map = self.conv3(x)
+        x = self.bn3(x_map)
         x = self.relu(x)
         x = self.conv4(x)
         #x = self.avgpool(x)
         x = x.view(x.size(0), -1)
         x = self.fc2(x)
-        x = self.sig(x)
+        x1 = self.sig(x[0:8])
+        x2 = self.sig(x[8:10])
+        x3 = x[10:12]
  
-        return x
+        return x1,x2,x3,x_map
 
 
 def resnet18(**kwargs):
