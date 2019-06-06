@@ -323,7 +323,7 @@ m1 = HandNet()
 m2 = HandNet()
 m3 = HandNet()
 m4 = HandNet()
-m5 = HandNet()
+m5 = HandNet2()
 
 print("loaded model!")
 

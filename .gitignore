@@ -6,6 +6,10 @@ imagenet/data
 imagenet/getAf-online.jar
 imagenet/model_best.pth.tar
 hand_net/data
+hand_net/edges
+hand_net/skin
+hand_net/test
 hand_net/*.pth
 hand_net/*.log
+hand_net/*.pyc
 
