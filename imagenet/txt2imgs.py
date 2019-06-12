@@ -12,7 +12,7 @@ args = parser.parse_args()
 
 fs = 125 #sampling frequency
 T = 1.0/fs #sampling period
-L = 30*fs #length of signal
+L = 15*fs #length of signal
 t = np.arange(0,L/fs,T) #time vector
 
 def ReadTxt(filename):
@@ -25,13 +25,6 @@ def mkdir(path):
 	if not os.path.exists(path):
 		os.makedirs(path)
 	return
-
-def Filter(data, fs = 125):
-    #bandpass 0.6Hz~25Hz
-    b, a = signal.butter(2, [40.0/60.0/fs*2,1500.0/60.0/fs*2] ,'bandpass')
-    filteddata = signal.filtfilt(b, a, data)
-    #filteddata = signal.lfilter(b, a, data)
-    return filteddata
 
 def GenImgFunc(data,i,filepath,L,filename):
     idx_start = i*L
@@ -57,13 +50,12 @@ def main():
     tm = time.time()
     mkdir("./imgs")
     filepath = args.path
-    txtlist = [os.path.join(os.path.realpath('.'), filepath, txtfile) for txtfile in os.listdir(filepath) if os.path.splitext(txtfile)[1] == '.txt']
+    txtlist = [txtfile for txtfile in os.listdir(filepath) if os.path.splitext(txtfile)[1] == '.txt']
     for txt in txtlist:
-        data = ReadTxt(txt)
-        #data = Filter(data)
-        filename = os.path.basename(txt)
-        filename = filename.split(".")[0]
-        GenImgs(data,L/2,"imgs",filename)
+        txt_path = os.path.join(os.path.realpath('.'), filepath, txt)
+        data = ReadTxt(txt_path)
+        filename = os.path.splitext(txt)[0]
+        GenImgs(data,L,"imgs",filename)
 
     print("time is {}".format(time.time()-tm))
     print("total time is {}".format(time.time()-start_tm))

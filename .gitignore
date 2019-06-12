@@ -4,7 +4,7 @@ data
 OpenNMT/data
 imagenet/data
 imagenet/getAf-online.jar
-imagenet/model_best.pth.tar
+imagenet/*.tar
 hand_net/data
 hand_net/edges
 hand_net/skin

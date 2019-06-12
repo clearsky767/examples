@@ -21,7 +21,7 @@ def main():
     start_tm = time.time()
     print("now start move files!")
     mkdir("./zjfval")
-    filelist = GetFileList("zjf")
+    filelist = GetFileList("data_n")
     for file in filelist:
         rd = random.randint(1,10)
         if rd < 4:

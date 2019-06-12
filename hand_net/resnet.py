@@ -147,9 +147,9 @@ class ResNet(nn.Module):
         #x = self.avgpool(x)
         x = x.view(x.size(0), -1)
         x = self.fc2(x)
-        x1 = self.sig(x[0:8])
-        x2 = self.sig(x[8:10])
-        x3 = x[10:12]
+        x1 = self.sig(x[:,0:8])
+        x2 = self.sig(x[:,8:10])
+        x3 = self.sig(x[:,10:12])
  
         return x1,x2,x3,x_map
 

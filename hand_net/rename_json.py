@@ -24,7 +24,7 @@ def get_imglist(path):
         if os.path.splitext(f)[1] == ".jpg" or os.path.splitext(f)[1] == ".JPG":
             imglist.append(f)
         if os.path.splitext(f)[1] == ".png" or os.path.splitext(f)[1] == ".jpeg":
-            print("find png or jpeg")
+            imglist.append(f)
         if os.path.splitext(f)[1] == ".json":
             jsonfile = f
     return imglist,jsonfile
@@ -41,7 +41,7 @@ def get_imglist2(path):
 
 def main():
     print("please input img prefix")
-    prefix = input("prefix: ")
+    prefix = raw_input("prefix: ")
     print("prefix is {}".format(prefix))
     idx = 0
     print("start!")
@@ -49,11 +49,15 @@ def main():
     json = read_txt(jsonfile)
     for img in imglist:
         idx += 1
-        rp_name = "{}{}.jpg".format(prefix, idx)
+        suffix = img.split(".")[-1]
+        rp_name = "{}{}.{}".format(prefix, idx,suffix)
         oldfile = os.path.join(os.path.realpath("."),img)
         newfile = os.path.join(os.path.realpath("."),rp_name)
         os.rename(oldfile, newfile)
-        json = json.replace(img,rp_name,2)
+        #for png
+        img_name = img.split(".")[0]
+        img_jpg = "{}.jpg".format(img_name)
+        json = json.replace(img_jpg,rp_name,2)
     print("end!")
     write_txt("out.json", json)
 

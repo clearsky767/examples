@@ -13,6 +13,7 @@ import argparse
 import numpy as np
 from PIL import Image, ImageDraw
 from resnet import resnet18
+from hand_net import create_model
 
 
 def show(img,points):
@@ -49,7 +50,7 @@ torch.manual_seed(1)
 if gpu is not None:
     torch.cuda.manual_seed(1)
 
-model = resnet18()
+model = create_model(gpu)
 print("loaded model!")
 
 if gpu is not None:
@@ -73,19 +74,29 @@ def main():
     print("model")
     img = "test/2.jpg"
     #img_path,img_path2 = generate_edges(img)
-    print(model)
+    #print(model)
     img = Image.open(img).convert('RGB')
     img_tensor = img_transforms(img)
     input = torch.unsqueeze(img_tensor,0)
     if gpu is not None:
         input = input.cuda(gpu, non_blocking=True)
-    output = model(input)
-    print(output.shape)
+    output = model(input,target = None)
+    p1,p2,p3,p4,p5 = output
+    print(p1.shape)
+    print(p2.shape)
+    print(p3.shape)
+    print(p4.shape)
+    print(p5.shape)
+    p = torch.cat((p1,p2),dim = -1)
+    p = torch.cat((p,p3),dim = -1)
+    p = torch.cat((p,p4),dim = -1)
+    p = torch.cat((p,p5),dim = -1)
+    print(p.shape)
     #img = transforms.ToPILImage()(img_tensor)
     w = 320
     h = 320
     img = img.resize((w, h),Image.ANTIALIAS)
-    show2(img,output,w,h)
+    show2(img,p,w,h)
 
 if __name__ == '__main__':
     main()

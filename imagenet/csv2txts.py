@@ -6,8 +6,8 @@ import time
 import os
 import argparse
 
-parser = argparse.ArgumentParser(description='txt2imgs')
-parser.add_argument('--path', default='test2', type=str, metavar='PATH',help='txts path')
+parser = argparse.ArgumentParser(description='csv2txts')
+parser.add_argument('--path', default='test2', type=str, metavar='PATH',help='csvs path')
 args = parser.parse_args()
 
 def ReadCsv(filename):
@@ -40,13 +40,18 @@ def main():
     filepath = args.path
     csvlist = [os.path.join(os.path.realpath('.'), filepath, file) for file in os.listdir(filepath) if os.path.splitext(file)[1] == '.csv']
     for csv in csvlist:
-        data = ReadCsv(csv)
-        data = Filter(data)
-        filename = os.path.basename(csv)
-        filename = filename.split(".")[0]
-        filename = os.path.join(os.path.realpath('.'), filepath, "{}.txt".format(filename))
-        data = [str(s) for s in data]
-        WriteTxt(filename,data)
+        try:
+            data = ReadCsv(csv)
+            data = Filter(data)
+            filename = os.path.basename(csv)
+            filename = filename.split(".")[0]
+            filename = os.path.join(os.path.realpath(filepath), "txts/{}.txt".format(filename))
+            data = [str(s) for s in data]
+            WriteTxt(filename,data)
+        except:
+            print("except {}".format(csv))
+            continue
+
 
     print("time is {}".format(time.time()-tm))
     print("total time is {}".format(time.time()-start_tm))

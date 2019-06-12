@@ -59,26 +59,15 @@ def Filter(bcg, fs = 125):
 def GetEnt(data , start ,end, steplengh): 
     xf_ent = []
     max_mean = []
-#    xf_var = []
     for i in range(start,end,steplengh): #快速傅里叶变换求频谱
         if (end-i) < 500:break
         xf1 = np.fft.rfft(data[i:i+steplengh])/steplengh
-    #    freqs1 = np.linspace(0, sampling_rate/2, steplengh/2+1) #取对数
         out1 = np.abs(xf1[int(len(xf1)/100):])
         out1 = out1/max(out1)
-    #    out1_max.append(list(xf1).index(np.max(xf1)))
-    #    xfp1 = 20*np.log10(np.clip(np.abs(xf1), 1e-20, 1e100))
-    #    plt.plot(freqs1, np.abs(xf1))
-
-         
-#        for i in range(100,len(out1)-20,20):
-#           max_mean1 = []
         max_mean.append(max(out1[100:]))  #探测有无高频噪声
-#        max_mean.append(max(max_mean1)) 
-#        xf_var.append(np.var(out1[50:]))
         ent1 = entropy(out1) #熵值计算
         xf_ent.append(ent1)
-        
+
     plt.figure()
     plt.plot(out1)
     return xf_ent,max_mean
@@ -105,15 +94,6 @@ start , end = 0,len(pos2)
 
 
 #命名和建立文件
-#docname = Filename1.split('/')[0]
-#name = str(Filename1.split('.')[1:-1])
-#
-#
-#mkdir(docname)
-#doc=open(docname + '/' +name+'.txt','w')
-#doc.close()
-#
-#doc=open(docname + '/' +name+'.txt','a')
 #
 xf1_ent,max_mean1 = GetEnt(pos1 , start ,end, steplengh)
 xf2_ent,max_mean2 = GetEnt(pos2 , start ,end, steplengh)
