@@ -3,11 +3,12 @@ data
 *.pyc
 OpenNMT/data
 imagenet/data
-imagenet/getAf-online.jar
+imagenet/*.jar
 imagenet/*.tar
+imagenet/*.pyc
 hand_net/data
-hand_net/edges
-hand_net/skin
+hand_net/weights_2
+hand_net/weights_3
 hand_net/test
 hand_net/*.pth
 hand_net/*.log

@@ -55,9 +55,9 @@ def main():
         newfile = os.path.join(os.path.realpath("."),rp_name)
         os.rename(oldfile, newfile)
         #for png
-        img_name = img.split(".")[0]
-        img_jpg = "{}.jpg".format(img_name)
-        json = json.replace(img_jpg,rp_name,2)
+        #img_name = img.split(".")[0]
+        #img_jpg = "{}.jpg".format(img_name)
+        json = json.replace(img,rp_name,2)
     print("end!")
     write_txt("out.json", json)
 
